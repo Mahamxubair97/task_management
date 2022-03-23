@@ -30,20 +30,25 @@ class taskController extends Controller
      */
     public function data($region,$city)
     {
-        Log::info($region);
-        Log::info($city);
-        Log::info(date_default_timezone_get() . ' => ' . date('e') . ' => ' . date('T'));
+        $ip  = request()->ip();
+        $ipInfo = file_get_contents('http://ip-api.com/json/' . $ip);
+        $ipInfo = json_decode($ipInfo);
+        $timezone = $ipInfo->timezone;
+        date_default_timezone_set($timezone);
+         $time  = date_default_timezone_get();
+        //dd($time);
         if(is_null($region) || is_null($city)){
             $region = 'Asia';
             $city = 'Karachi';
         }
         $tasks = Task::all();
-        foreach($tasks as $task){
-            $date  = Carbon::parse($task->deadline); 
-            $date = Timezone::convertToLocal($date);
-            $task->deadline = $date;
-            Log::info($date);
+         foreach($tasks as $task){
+
+            $date = new DateTime("@".$task->deadline); 
+            $date->setTimezone(new DateTimeZone($timezone));
+            $task->deadline = $date->format('Y-m-d H:i:sP');
         }
+
         return DataTables::of($tasks)->make(true);
     }
     /**
@@ -64,11 +69,16 @@ class taskController extends Controller
      */
     public function store(Request $request)
     {
-        date_default_timezone_set($request->timezone); //Changing the timze according to Local Time
+         $ip  = request()->ip();
+         $ipInfo = file_get_contents('http://ip-api.com/json/' . $ip);
+         $ipInfo = json_decode($ipInfo);
+         $timezone = $ipInfo->timezone;
+         date_default_timezone_set($timezone);
+         //$time  = date_default_timezone_get(); according to Local Time
         //creating new task
         $task = new Task();
         $task->name = $request->name;
-        $task->deadline = Carbon::parse($request->deadline);
+        $task->deadline = Carbon::parse($request->deadline)->timestamp;
         $task->user_id = $request->user;
         $task->save();
         
